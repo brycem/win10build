@@ -12,40 +12,6 @@ SHELL ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","-comman
     "$BldVer = $('FullBuildString:  '+ $WinVer.BuildLabEx); Write-Output -InputObject $OsVer,$BldVer; "]
 WORKDIR /
 
-# Install NuGet, Chocolatey, Git, CMake 3.6.0, Wix3.10, & DotNet
-ENV chocolateyUseWindowsCompression="false"
-RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;`
-    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted;`
-    Invoke-Expression ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'));`
-    refreshenv; choco install -y git; choco install -y cmake --version 3.6.0; choco install -y DotNet4.5;`
-    [String]$NetFx4 = $(Get-WindowsOptionalFeature -online -FeatureName NetFx4).State;`
-    If ($NetFx4 -ne 'Enabled') {Throw ('NetFx4 feature state is '+$NetFx4)}`
-    choco install -y netfx-4.5.1-devpack;`
-    choco install -y netfx-4.6.2-devpack;`
-    choco install -y windows-sdk-8.0;`
-    Write-Host 'Installing Wix 3.10...';`
-    $downloadUrl = 'http://download-codeplex.sec.s-msft.com/Download/Release?ProjectName=wix&DownloadId=1540240&FileTime=130977908946800000&Build=21031';`
-    $expectedSha = '92D53B701EC83D37F11BDB845103F2A7A2A5F94ADEE89AF1C5AF247C07F5BC6C';`
-    Invoke-WebRequest -Uri $downloadUrl -UseBasicParsing -OutFile c:\wixsetup.exe;`
-    $actualSha = $(Get-FileHash -Path c:\wixsetup.exe -Algorithm SHA256).Hash;`
-    If ($expectedSha -ne $actualSha) {Throw 'c:\wixsetup.exe hash does not match!'}`
-    $proc = Start-Process -FilePath c:\wixsetup.exe -ArgumentList '-quiet' -Wait -PassThru;`
-    $wixToolsetBinPath = ${env:ProgramFiles(x86)}+'\WiX Toolset v3.10\bin';`
-    If (($proc.ExitCode -eq 0) -and (Test-Path $wixToolsetBinPath)) {`
-        Write-Host 'NuGet, Chocolatey, Git, CMake, Wix3.10, & DotNet4.5 setup is complete.';`
-        Remove-Item c:\wixsetup.exe -Force;`
-        [System.Environment]::SetEnvironmentVariable('Path',(([System.Environment]::GetEnvironmentVariable(`
-            'Path','Machine'))+';'+$Env:ProgramFiles+'\CMake\bin'),'Machine')`
-    } else {Throw ('C:\wixsetup.exe returned '+$proc.ExitCode)}`
-    Remove-Item ($Env:LOCALAPPDATA+'\Temp\chocolatey\') -Recurse -Force;`
-    If (-not(Get-Variable -Name HOMEDRIVE -ea ignore)) {`
-        [System.Environment]::SetEnvironmentVariable('HOMEDRIVE',($Env:SystemDrive),'User')`
-    }`
-    If (-not(Get-Variable -Name HOMEPATH  -ea ignore)) {`
-        [System.Environment]::SetEnvironmentVariable(`
-            'HOMEPATH',($Env:USERPROFILE.Replace($Env:SystemDrive,'')),'User')`
-    }
-
 # Install Microsoft Windows 10 Standalone SDK v10.0.26624
 # Includes workaround for https://github.com/PowerShell/PowerShell/issues/2571
 ADD UserExperienceManifest.xml /UserExperienceManifest.new
@@ -81,6 +47,27 @@ RUN New-Item -Path C:\sdksetup -Type Directory -Force|out-null;`
         Throw ('C:\sdksetup\SdkSetup.exe returned '+$proc.ExitCode+'.  Verbose logs under c:\sdksetup\')`
     } Set-Location C:\; Remove-Item 'C:\ProgramData\Package Cache\','C:\sdksetup\' -Recurse -Force
 
+# Install NuGet, Chocolatey, Git, CMake, WixToolset, DotNet & Win8.1sdk
+ENV chocolateyUseWindowsCompression="false"
+RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;`
+    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted;`
+    Invoke-Expression ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'));`
+    refreshenv; choco install -y git; choco install -y cmake --version 3.6.0; choco install -y DotNet4.5;`
+    [String]$NetFx4 = $(Get-WindowsOptionalFeature -online -FeatureName NetFx4).State;`
+    If ($NetFx4 -ne 'Enabled') {Throw ('NetFx4 feature state is '+$NetFx4)}`
+    choco install -y windows-sdk-8.1; choco install -y netfx-4.5.1-devpack;`
+    choco install -y wixtoolset -version 3.10.0.2103; choco install -y netfx-4.6.2-devpack;`
+    [System.Environment]::SetEnvironmentVariable('Path',(([System.Environment]::GetEnvironmentVariable(`
+        'Path','Machine'))+';'+$Env:ProgramFiles+'\CMake\bin'),'Machine');`
+    Remove-Item ($Env:LOCALAPPDATA+'\Temp\chocolatey\') -Recurse -Force;`
+    If (-not(Get-Variable -Name HOMEDRIVE -ea ignore)) {`
+        [System.Environment]::SetEnvironmentVariable('HOMEDRIVE',($Env:SystemDrive),'User')`
+    }`
+    If (-not(Get-Variable -Name HOMEPATH  -ea ignore)) {`
+        [System.Environment]::SetEnvironmentVariable(`
+            'HOMEPATH',($Env:USERPROFILE.Replace($Env:SystemDrive,'')),'User')`
+    }
+
 # Download and Install VC++ 2015 Build Tools v14.0.25420.1 using customized AdminFile.xml (adds MFC\ATL headers and includes)
 # http://landinghub.visualstudio.com/visual-cpp-build-tools
 ADD visualcppbuildtools.xml /buildtools/AdminFile.xml
@@ -101,12 +88,11 @@ RUN $downloadUrl = 'https://download.microsoft.com/download/5/f/7/5f7acaeb-8363-
         Write-Host 'See C:\Dockerfile.log for more information.';`
         Write-Host ('Test-Path "'+$vcBld+'"'); Test-Path $vcBld;echo ('Test-Path "'+$VcVars+'"');Test-Path $VcVars;`
         Throw ('C:\buildtools\vcpptools.exe returned '+$proc.ExitCode+'. Verbose logs under c:\buildtools\')`
-    } Remove-Item 'C:\ProgramData\Package Cache\','C:\buildtools\' -Recurse -Force
-
-SHELL ["CMD.EXE","/C"]
-RUN del /q C:\Dockerfile.log &>c:\entrypoint.bat echo @echo off &>>c:\entrypoint.bat echo pushd C:&`
-    >>c:\entrypoint.bat echo call "C:\Program Files (x86)\Microsoft Visual C++ Build Tools\vcbuildtools.bat"&`
-    >>c:\entrypoint.bat echo popd&>>c:\entrypoint.bat echo powershell -c $ErrorActionPreference='Stop';$ConfirmPreference='None';%*
+    } Remove-Item 'C:\ProgramData\Package Cache\','C:\buildtools\' -Recurse -Force;`
+    Stop-Transcript; Remove-Item C:\Dockerfile.log -Force
 
 WORKDIR /Code
-ENTRYPOINT ["C:\\entrypoint.bat"]
+ENTRYPOINT ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","-command","$ErrorActionPreference = 'Stop';`
+    "$ConfirmPreference = 'None';$vcBld = ${env:ProgramFiles(x86)}+'\\Microsoft Visual C++ Build Tools\\vcbuildtools.bat';`
+    "test-path $vcBld; [String]$cmdline = ([char]0x0022+$vcBld+[char]0x0022+' x64&set');`
+    "cmd /c $cmdLine | Foreach-Object {$cmdVar,$cmdVal=$_.split('=');Set-Item -Path env:$cmdVar -Value $cmdVal};"]

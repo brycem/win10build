@@ -1,9 +1,10 @@
 # Win10Sdk
 Builds a Docker image with Visual C++ Build tools and Windows 10 SDK v10.0.26624.
+Also includes Wix3.1, CMake, DotNet45 & WinSdk8.1:
 * https://hub.docker.com/r/brycem/win10build/
 
-The `entrypoint.bat` script calls the `vcbuildtools.bat` script to set all
-environment variables.
+The [ENTRYPOINT] is powershell, but it calls `vcbuildtools.bat` script to set
+Visual Studio 2015 build environment variables.
 
 ## License
 
