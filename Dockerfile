@@ -14,7 +14,7 @@ WORKDIR /
 
 # Install Microsoft Windows 10 Standalone SDK v10.0.26624
 # Includes workaround for https://github.com/PowerShell/PowerShell/issues/2571
-ADD UserExperienceManifest.xml /UserExperienceManifest.new
+ADD https://raw.githubusercontent.com/brycem/win10build/master/UserExperienceManifest.xml /UserExperienceManifest.new
 RUN New-Item -Path C:\sdksetup -Type Directory -Force|out-null;`
     $downloadUrl = 'http://download.microsoft.com/download/E/1/F/E1F1E61E-F3C6-4420-A916-FB7C47FBC89E/standalonesdk/sdksetup.exe';`
     $expectedSha = '932814CDF2D9395CB32C2A834266D880AEB37CD3855A71A7FB3BC1613DEAA7C9';`
@@ -70,7 +70,7 @@ RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;`
 
 # Download and Install VC++ 2015 Build Tools v14.0.25420.1 using customized AdminFile.xml (adds MFC\ATL headers and includes)
 # http://landinghub.visualstudio.com/visual-cpp-build-tools
-ADD visualcppbuildtools.xml /buildtools/AdminFile.xml
+ADD https://raw.githubusercontent.com/brycem/win10build/master/visualcppbuildtools.xml /buildtools/AdminFile.xml
 RUN $downloadUrl = 'https://download.microsoft.com/download/5/f/7/5f7acaeb-8363-451f-9425-68a90f98b238/visualcppbuildtools_full.exe';`
     Invoke-WebRequest -Uri $downloadUrl -UseBasicParsing -OutFile C:\buildtools\vcpptools.exe;`
     $expectedSha = '1E1774869ABD953D05D10372B7C08BFA0C76116F5C6DF1F3D031418CCDCD8F7B';`
