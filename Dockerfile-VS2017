@@ -1,0 +1,70 @@
+# escape=`
+FROM microsoft/windowsservercore
+MAINTAINER brycem@microsoft.com
+LABEL Readme.md="https://github.com/brycem/Win10build/blob/master/README.md",`
+      Description="This Dockerfile will install common Microsoft VS2017+Win10 build tools & SDK."
+
+# Prepare shell environment to Log-to > C:\Dockerfile.log
+SHELL ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","-command","$ErrorActionPreference = 'Stop';","$ConfirmPreference = 'None';",`
+    "$VerbosePreference = 'Continue';","Start-Transcript -path C:\\Dockerfile.log -append -IncludeInvocationHeader;","$PSVersionTable|Write-Output;",`
+    "$WinVer = $(Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion');",`
+    "$OsVer = $('OperatingSystem:  '+ $WinVer.ProductName +' '+$WinVer.EditionId+' '+$WinVer.InstallationType);",`
+    "$BldVer = $('FullBuildString:  '+ $WinVer.BuildLabEx); Write-Output -InputObject $OsVer,$BldVer; "]
+WORKDIR /
+
+# Disable AutoUpdates, Defender, WinRM, and RemoteReg, Install Chocolatey, DotNet, NuGet, Git, & 7-Zip
+ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE="true" DOTNET_CLI_TELEMETRY_OPTOUT="1" chocolateyUseWindowsCompression="false"
+RUN Set-ExecutionPolicy Unrestricted;`
+	Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update' -Name 'AUOptions' -Value '1' -Type Dword;`
+	Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'NtfsDisable8dot3NameCreation' -Value '0' -Type Dword;`
+    New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender' -ItemType Leaf;`
+    New-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender' -Name 'DisableAntiSpyware' -Value '1' -Type Dword;`
+	net.exe stop WinRM;`
+	sc.exe config WinRM start= disabled;`
+	net.exe stop RemoteRegistry;`
+	sc.exe config RemoteRegistry start= disabled;`
+	net.exe stop DiagTrack;`
+	sc.exe config DiagTrack start= disabled;`
+	Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;`
+    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted;`
+    Invoke-Expression ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'));`
+	refreshenv; choco install -y DotNet4.7 nuget.commandline 7zip; exit 0
+
+# Install Win10.1sdk Win8.2sdk, & DotNet targeting packs
+RUN [String]$NetFx4 = $(Get-WindowsOptionalFeature -online -FeatureName NetFx4).State;`
+    If ($NetFx4 -ne 'Enabled') {Throw ('NetFx4 feature state is '+$NetFx4)};`
+	choco install -y netfx-4.7-devpack windows-sdk-8.1 windows-sdk-10.1;`
+    Remove-Item ($Env:LOCALAPPDATA+'\Temp\chocolatey\') -Recurse -Force -ErrorAction Ignore;`
+    If (-not(Get-Variable -Name HOMEDRIVE -ea ignore)) {`
+        [System.Environment]::SetEnvironmentVariable('HOMEDRIVE',($Env:SystemDrive),'User')};`
+    If (-not(Get-Variable -Name HOMEPATH  -ea ignore)) {[System.Environment]::SetEnvironmentVariable(`
+            'HOMEPATH',($Env:USERPROFILE.Replace($Env:SystemDrive,'')),'User')};`
+	Get-ChildItem -Directory -Path $env:TEMP | ForEach-Object {`
+		Remove-Item -Recurse -Force -Path $_.FullName -ErrorAction Ignore};`
+	Get-ChildItem -File -Path $env:TEMP | ForEach-Object {`
+		Remove-Item -Force -Path $_.FullName -ErrorAction Ignore};
+
+# Download and Install Visual Studio 2017 Build Tools, including VC++ tools and WinSDK
+# http://landinghub.visualstudio.com/visual-cpp-build-tools
+RUN Write-Host 'Starting VC++ 2017 Build Tools setup...';`
+	choco install -y visualstudio2017buildtools  --package-parameters "--all `
+		--remove Microsoft.VisualStudio.Component.Windows10SDK.10240 `
+		--remove Microsoft.VisualStudio.Component.Windows10SDK.10586 `
+		--remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
+		--remove Microsoft.VisualStudio.Component.Windows81SDK";`
+	Get-ChildItem -Directory -Path $env:TEMP | ForEach-Object {`
+		Remove-Item -Recurse -Force -Path $_.FullName -Verbose -ErrorAction Ignore};`
+	Get-ChildItem -File -Path $env:TEMP | ForEach-Object {`
+		Remove-Item -Force -Path $_.FullName -Verbose -ErrorAction Ignore};
+
+ENV COMPLUS_NGenProtectedProcess_FeatureEnabled=0
+RUN DISM.EXE /Online /Cleanup-Image /CheckHealth;`
+	C:\Windows\Microsoft.NET\Framework64\v4.0.30319\ngen update; `
+    C:\Windows\Microsoft.NET\Framework\v4.0.30319\ngen update; `
+	Stop-Transcript; Remove-Item C:\Dockerfile.log -Force; exit 0
+
+WORKDIR /Code
+ENTRYPOINT ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","-command","$ErrorActionPreference = 'Stop';`
+    "$ConfirmPreference = 'None';$vcBld = ${env:ProgramFiles(x86)}+'\\Microsoft Visual C++ Build Tools\\vcbuildtools.bat';`
+    "test-path $vcBld; [String]$cmdline = ([char]0x0022+$vcBld+[char]0x0022+' x64&set');`
+    "cmd /c $cmdLine | Foreach-Object {$cmdVar,$cmdVal=$_.split('=');Set-Item -Path env:$cmdVar -Value $cmdVal};"]
