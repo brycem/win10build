@@ -12,7 +12,7 @@ SHELL ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","-comman
     "$BldVer = $('FullBuildString:  '+ $WinVer.BuildLabEx); Write-Output -InputObject $OsVer,$BldVer; "]
 WORKDIR /
 
-# Install Microsoft Windows 10 Standalone SDK v10.0.26624
+# Install Microsoft Windows 10 Standalone SDK v10.0.26624.
 # Includes workaround for https://github.com/PowerShell/PowerShell/issues/2571
 ADD https://raw.githubusercontent.com/brycem/win10build/master/UserExperienceManifest.xml /UserExperienceManifest.new
 RUN New-Item -Path C:\sdksetup -Type Directory -Force|out-null;`
