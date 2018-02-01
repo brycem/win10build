@@ -4,7 +4,7 @@ MAINTAINER brycem@microsoft.com
 LABEL Readme.md="https://github.com/brycem/Win10build/blob/master/README.md",`
       Description="This Dockerfile will install common Microsoft VS14+Win10 build tools & Win10 SDKv10.0.26624."
 
-# Prepare shell environment to Log to > C:\Dockerfile.log
+# Prepare shell environment to Log-to > C:\Dockerfile.log
 SHELL ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","-command","$ErrorActionPreference = 'Stop';","$ConfirmPreference = 'None';",`
     "$VerbosePreference = 'Continue';","Start-Transcript -path C:\\Dockerfile.log -append -IncludeInvocationHeader;","$PSVersionTable|Write-Output;",`
     "$WinVer = $(Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion');",`
