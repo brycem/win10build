@@ -56,7 +56,7 @@ RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;`
     [String]$NetFx4 = $(Get-WindowsOptionalFeature -online -FeatureName NetFx4).State;`
     If ($NetFx4 -ne 'Enabled') {Throw ('NetFx4 feature state is '+$NetFx4)}`
     choco install -y windows-sdk-8.1; choco install -y netfx-4.5.1-devpack;`
-    choco install -y wixtoolset -version 3.10.0.2103; choco install -y netfx-4.6.2-devpack;`
+    choco install -y wixtoolset; choco install -y netfx-4.6.2-devpack;`
     [System.Environment]::SetEnvironmentVariable('Path',(([System.Environment]::GetEnvironmentVariable(`
         'Path','Machine'))+';'+$Env:ProgramFiles+'\CMake\bin'),'Machine');`
     Remove-Item ($Env:LOCALAPPDATA+'\Temp\chocolatey\') -Recurse -Force;`
